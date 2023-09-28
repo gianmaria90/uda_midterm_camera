@@ -1,6 +1,6 @@
 #include <numeric>
 #include "matching2D.hpp"
-
+#include <opencv2/core/hal/interface.h>
 using namespace std;
 
 // Find best matches for keypoints in two camera images based on several matching methods
@@ -14,24 +14,46 @@ void matchDescriptors(std::vector<cv::KeyPoint> &kPtsSource, std::vector<cv::Key
     if (matcherType.compare("MAT_BF") == 0)
     {
         int normType = cv::NORM_HAMMING;
+        if(descriptorType.compare("DES_HOG") == 0){
+            normType = cv::NORM_L1;
+        }
         matcher = cv::BFMatcher::create(normType, crossCheck);
+        
     }
     else if (matcherType.compare("MAT_FLANN") == 0)
     {
-        // ...
+        matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::FLANNBASED);
+    }
+    if(descSource.type() != CV_32F)
+    {
+        descSource.convertTo(descSource, CV_32F);
+    }
+    if(descRef.type() != CV_32F)
+    {
+        descRef.convertTo(descRef, CV_32F);
     }
 
     // perform matching task
     if (selectorType.compare("SEL_NN") == 0)
     { // nearest neighbor (best match)
-
+        cout<<descRef.type()<<"  "<<descSource.type()<<"  "<<"prima di match"<<endl;
         matcher->match(descSource, descRef, matches); // Finds the best match for each descriptor in desc1
     }
     else if (selectorType.compare("SEL_KNN") == 0)
     { // k nearest neighbors (k=2)
-
-        // ...
+        cout<<descRef.type()<<"  "<<descSource.type()<<"  "<<"prima di match "<<CV_32F<<endl;
+        std::vector<std::vector<cv::DMatch>> matches2;
+        matcher->knnMatch(descSource, descRef, matches2, 2);
+        const float ratio = 0.8f;
+        for (size_t i = 0; i< matches2.size(); i++)
+        {
+            if (matches2[i][0].distance < ratio * matches2[i][1].distance )
+            {
+                matches.push_back(matches2[i][0]);
+            }
+        }
     }
+    cout<<"matched keypoints numbers: "<<matches.size()<<endl;
 }
 
 // Use one of several types of state-of-art descriptors to uniquely identify keypoints
@@ -188,30 +210,45 @@ void detKeypointsHarris(vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool bVis
 
 void detKeypointsFast(vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool bVis)
 {
+    double t = (double)cv::getTickCount();
     cv::Ptr<cv::FastFeatureDetector> detector = cv::FastFeatureDetector::create(10,true);
     detector->detect(img, keypoints);
+    t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+    cout << "Fast detection with n=" << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
 }
 
 void detKeypointsBrisk(vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool bVis)
 {
+    double t = (double)cv::getTickCount();
     cv::Ptr<cv::BRISK> detector = cv::BRISK::create();
     detector->detect(img, keypoints);
+    t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+    cout << "Brisk detection with n=" << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
 }
 
 void detKeypointsOrb(vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool bVis)
 {
+    double t = (double)cv::getTickCount();
     cv::Ptr<cv::ORB> detector = cv::ORB::create();
     detector->detect(img, keypoints);
+    t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+    cout << "Orb detection with n=" << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
 }
 
 void detKeypointsAkaze(vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool bVis)
 {
+    double t = (double)cv::getTickCount();
     cv::Ptr<cv::AKAZE> detector = cv::AKAZE::create();
     detector->detect(img, keypoints);
+    t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+    cout << "Akaze detection with n=" << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
 }
 
 void detKeypointsSift(vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool bVis)
 {
+    double t = (double)cv::getTickCount();
     cv::Ptr<cv::Feature2D> detector = cv::xfeatures2d::SURF::create();
     detector->detect(img, keypoints);
+    t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+    cout << "Sift detection with n=" << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
 }
